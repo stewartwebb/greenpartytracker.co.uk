@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -87,6 +89,33 @@ func getGreenPartyData() []MembershipDataPoint {
 	}
 
 	return deduped
+}
+
+func loadCSV(path string) ([]MembershipDataPoint, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	reader := csv.NewReader(f)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var points []MembershipDataPoint
+	for _, row := range records {
+		if len(row) < 2 {
+			continue
+		}
+		count, err := strconv.Atoi(row[0])
+		if err != nil {
+			continue
+		}
+		points = append(points, MembershipDataPoint{Date: row[1], Count: count})
+	}
+	return points, nil
 }
 
 func getReformData(dbPath string) ([]MembershipDataPoint, error) {
@@ -196,13 +225,13 @@ func main() {
 		greenData := getGreenPartyData()
 		reformData, err := getReformData(reformDBPath)
 		if err != nil {
-			log.Printf("Warning: could not load reform data: %v", err)
-			reformData = []MembershipDataPoint{}
+			log.Printf("SQLite reform data unavailable (%v), trying CSV fallback", err)
+			reformData, _ = loadCSV("data/reform.csv")
 		}
 		restoreBritainData, err := getRestoreBritainData(reformDBPath)
 		if err != nil {
-			log.Printf("Warning: could not load restore britain data: %v", err)
-			restoreBritainData = []MembershipDataPoint{}
+			log.Printf("SQLite restore britain data unavailable (%v), trying CSV fallback", err)
+			restoreBritainData, _ = loadCSV("data/restore_britain.csv")
 		}
 
 		greenJSON, _ := json.Marshal(greenData)
@@ -241,13 +270,11 @@ func main() {
 		greenData := getGreenPartyData()
 		reformData, err := getReformData(reformDBPath)
 		if err != nil {
-			log.Printf("Warning: could not load reform data: %v", err)
-			reformData = []MembershipDataPoint{}
+			reformData, _ = loadCSV("data/reform.csv")
 		}
 		restoreBritainData, err := getRestoreBritainData(reformDBPath)
 		if err != nil {
-			log.Printf("Warning: could not load restore britain data: %v", err)
-			restoreBritainData = []MembershipDataPoint{}
+			restoreBritainData, _ = loadCSV("data/restore_britain.csv")
 		}
 
 		resp := map[string]interface{}{
