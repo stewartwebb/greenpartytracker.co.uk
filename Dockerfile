@@ -16,6 +16,7 @@ WORKDIR /app
 COPY --from=builder /app/greenpartytracker .
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/data ./data
+COPY --from=builder /app/static ./static
 
 ENV PORT=3000
 
