@@ -21,6 +21,16 @@ type MembershipDataPoint struct {
 	Count int    `json:"count"`
 }
 
+type loweTrackerMembershipPoint struct {
+	MemberCount int    `json:"member_count"`
+	RecordedAt  string `json:"recorded_at"`
+}
+
+type loweTrackerMembershipResponse struct {
+	Reform         []loweTrackerMembershipPoint `json:"reform"`
+	RestoreBritain []loweTrackerMembershipPoint `json:"restore_britain"`
+}
+
 type PartyData struct {
 	Name   string                `json:"name"`
 	Color  string                `json:"color"`
@@ -135,6 +145,68 @@ func loadCSV(path string) ([]MembershipDataPoint, error) {
 		points = append(points, MembershipDataPoint{Date: row[1], Count: count})
 	}
 	return points, nil
+}
+
+func normaliseRemoteMembershipData(points []loweTrackerMembershipPoint) []MembershipDataPoint {
+	sort.Slice(points, func(i, j int) bool {
+		return points[i].RecordedAt < points[j].RecordedAt
+	})
+
+	seen := make(map[string]int)
+	var normalised []MembershipDataPoint
+
+	for _, point := range points {
+		recordedAt, err := time.Parse(time.RFC3339Nano, point.RecordedAt)
+		if err != nil {
+			recordedAt, err = time.Parse(time.RFC3339, point.RecordedAt)
+			if err != nil {
+				continue
+			}
+		}
+
+		date := recordedAt.UTC().Format("2006-01-02")
+		normalisedPoint := MembershipDataPoint{
+			Date:  date,
+			Count: point.MemberCount,
+		}
+
+		if idx, ok := seen[date]; ok {
+			normalised[idx] = normalisedPoint
+		} else {
+			seen[date] = len(normalised)
+			normalised = append(normalised, normalisedPoint)
+		}
+	}
+
+	return normalised
+}
+
+func getLoweTrackerData() ([]MembershipDataPoint, []MembershipDataPoint, error) {
+	req, err := http.NewRequest(http.MethodGet, "https://lowetracker.co.uk/api/reform/membership", nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating lowe tracker request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "greenpartytracker.co.uk/1.0")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fetching lowe tracker data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, fmt.Errorf("fetching lowe tracker data: unexpected status %s", resp.Status)
+	}
+
+	var payload loweTrackerMembershipResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, nil, fmt.Errorf("decoding lowe tracker data: %w", err)
+	}
+
+	return normaliseRemoteMembershipData(payload.Reform), normaliseRemoteMembershipData(payload.RestoreBritain), nil
 }
 
 func getReformData(dbPath string) ([]MembershipDataPoint, error) {
@@ -326,15 +398,21 @@ func main() {
 		}
 
 		greenData := getGreenPartyData()
-		reformData, err := getReformData(reformDBPath)
+		reformData, restoreBritainData, err := getLoweTrackerData()
 		if err != nil {
-			log.Printf("SQLite reform data unavailable (%v), trying CSV fallback", err)
-			reformData, _ = loadCSV("data/reform.csv")
-		}
-		restoreBritainData, err := getRestoreBritainData(reformDBPath)
-		if err != nil {
-			log.Printf("SQLite restore britain data unavailable (%v), trying CSV fallback", err)
-			restoreBritainData, _ = loadCSV("data/restore_britain.csv")
+			log.Printf("Lowe Tracker data unavailable (%v), trying local fallback sources", err)
+
+			reformData, err = getReformData(reformDBPath)
+			if err != nil {
+				log.Printf("SQLite reform data unavailable (%v), trying CSV fallback", err)
+				reformData, _ = loadCSV("data/reform.csv")
+			}
+
+			restoreBritainData, err = getRestoreBritainData(reformDBPath)
+			if err != nil {
+				log.Printf("SQLite restore britain data unavailable (%v), trying CSV fallback", err)
+				restoreBritainData, _ = loadCSV("data/restore_britain.csv")
+			}
 		}
 
 		greenJSON, _ := json.Marshal(greenData)
@@ -383,13 +461,17 @@ func main() {
 
 	http.HandleFunc("/api/data", func(w http.ResponseWriter, r *http.Request) {
 		greenData := getGreenPartyData()
-		reformData, err := getReformData(reformDBPath)
+		reformData, restoreBritainData, err := getLoweTrackerData()
 		if err != nil {
-			reformData, _ = loadCSV("data/reform.csv")
-		}
-		restoreBritainData, err := getRestoreBritainData(reformDBPath)
-		if err != nil {
-			restoreBritainData, _ = loadCSV("data/restore_britain.csv")
+			reformData, err = getReformData(reformDBPath)
+			if err != nil {
+				reformData, _ = loadCSV("data/reform.csv")
+			}
+
+			restoreBritainData, err = getRestoreBritainData(reformDBPath)
+			if err != nil {
+				restoreBritainData, _ = loadCSV("data/restore_britain.csv")
+			}
 		}
 
 		resp := map[string]interface{}{
