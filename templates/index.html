@@ -3,17 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Green Party Membership Tracker | Historic Growth, Numbers &amp; Trends</title>
-    <meta name="description" content="Track Green Party membership growth over time. Live membership tracker showing historic numbers, trends, and comparison with Reform UK and Restore Britain. Updated regularly with the latest figures.">
-    <meta name="keywords" content="green party membership, green party membership tracker, green party membership history, green party membership over time, green party membership numbers, green party membership growth, green party members, UK green party, green party UK membership, how many green party members">
-    <meta property="og:title" content="Green Party Membership Tracker | Live Growth Data">
-    <meta property="og:description" content="Track the historic growth of Green Party membership in the UK. Live charts comparing Green Party, Reform UK, and Restore Britain membership over time.">
+    <title>Green Party Membership Numbers | Live UK Tracker &amp; History</title>
+    <meta name="description" content="Green Party membership numbers in the UK, updated regularly. See the latest recorded figure, historic growth, and comparisons with Reform UK and Restore Britain.">
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+    <meta name="keywords" content="green party membership numbers, green party membership, green party membership tracker, green party membership history, green party membership over time, green party membership growth, green party members, UK green party, green party UK membership, how many green party members">
+    <meta property="og:title" content="Green Party Membership Numbers | Live UK Tracker">
+    <meta property="og:description" content="Track Green Party membership numbers in the UK with the latest figure, historic growth chart, and party comparisons.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://greenpartytracker.co.uk">
+    <meta property="og:site_name" content="Green Party Tracker">
+    <meta property="og:image" content="https://greenpartytracker.co.uk/static/favicon-512.png">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Green Party Membership Tracker">
-    <meta name="twitter:description" content="Live tracker showing Green Party membership growth over time, with historic data and party comparisons.">
+    <meta name="twitter:title" content="Green Party Membership Numbers">
+    <meta name="twitter:description" content="Latest Green Party membership numbers, historic growth, and UK party comparisons in one live tracker.">
+    <meta name="twitter:image" content="https://greenpartytracker.co.uk/static/favicon-512.png">
     <link rel="canonical" href="https://greenpartytracker.co.uk">
+    <script type="application/ld+json">{{.HomeSchemaJSON}}</script>
+    <link rel="icon" href="/static/favicon.ico" sizes="any">
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <meta name="theme-color" content="#064e3b">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,12 +108,8 @@
         .logo-icon {
             width: 56px;
             height: 56px;
-            background: linear-gradient(135deg, var(--green-500), var(--green-700));
             border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
+            display: block;
             box-shadow: 0 4px 24px rgba(16, 185, 129, 0.3);
         }
 
@@ -129,6 +135,14 @@
             color: var(--text-muted);
             font-size: 0.85rem;
             margin-top: 12px;
+        }
+
+        .quick-answer {
+            max-width: 760px;
+            margin: 16px auto 0;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.7;
         }
 
         /* Stats Layout */
@@ -474,11 +488,12 @@
     <div class="container">
         <header>
             <div class="logo-area">
-                <div class="logo-icon">🌿</div>
-                <h1>Green Party Tracker</h1>
+                <img class="logo-icon" src="/static/logo.svg" alt="" width="56" height="56">
+                <h1>Green Party Membership Numbers</h1>
             </div>
-            <p class="subtitle">Tracking the growth of Green Party membership in the UK</p>
+            <p class="subtitle">Live UK tracker of Green Party membership numbers, history and growth</p>
             <p class="last-updated">Last updated: {{.LastUpdated}}</p>
+            <p class="quick-answer">Latest recorded figure: <strong>{{formatNumber .GreenLatest}}</strong> Green Party members on <strong>{{.GreenLatestDateLabel}}</strong>.</p>
         </header>
 
         <div class="stats-hero">
@@ -510,7 +525,7 @@
 
         <div class="chart-section">
             <div class="chart-header">
-                <div class="chart-title">Membership Growth Over Time</div>
+                <div class="chart-title">Green Party Membership Numbers Over Time</div>
                 <div class="chart-legend">
                     <div class="legend-item">
                         <div class="legend-dot green"></div>
@@ -552,11 +567,11 @@
 
         <!-- SEO Content -->
         <article class="seo-content">
-            <h2>Green Party Membership Over Time: A Complete History</h2>
-            <p>The Green Party of England and Wales has experienced remarkable membership growth since 2023. This tracker provides a comprehensive, regularly-updated record of <strong>Green Party membership numbers</strong> over time, allowing supporters, journalists, and political analysts to monitor the trajectory of one of the UK's fastest-growing political movements.</p>
+            <h2>Green Party Membership Numbers: Latest UK Tracker and History</h2>
+            <p>This page tracks <strong>Green Party membership numbers</strong> in the UK, with the latest recorded figure, a live chart of growth over time, and comparisons with Reform UK and Restore Britain. It is designed to answer the core search query directly: how many Green Party members are there right now, and how has that changed over time?</p>
 
-            <h3>How Many Green Party Members Are There?</h3>
-            <p>As of March 2026, the <strong>Green Party has over 216,000 members</strong>, making it one of the largest political parties in the United Kingdom by membership. This represents a staggering growth of over 300% from the approximately 53,000 members recorded in December 2023. The Green Party membership tracker above shows this growth in detail, with data points captured from official announcements and verified sources.</p>
+            <h3>How Many Green Party Members Are There Today?</h3>
+            <p>As of {{.GreenLatestDateLabel}}, the <strong>latest recorded Green Party membership number is {{formatNumber .GreenLatest}}</strong>. That makes the party one of the largest political parties in the United Kingdom by membership. The tracker above shows how Green Party membership numbers have changed from late 2023 onward using publicly reported figures and verified sources.</p>
 
             <h3>Green Party Membership Growth Timeline</h3>
             <p>The <strong>Green Party membership history</strong> reveals several key phases of growth:</p>
@@ -570,7 +585,7 @@
             <h3>Green Party vs Reform UK Membership Comparison</h3>
             <p>While Reform UK currently leads in raw membership numbers with over 275,000 members, the <strong>Green Party's rate of growth</strong> has been remarkable. The gap between the two parties has been narrowing steadily, and at current trends, the Green Party could overtake Reform UK in total membership. This tracker allows you to compare both parties' membership trajectories side by side.</p>
 
-            <h3>Why Is Green Party Membership Growing?</h3>
+            <h3>Why Are Green Party Membership Numbers Growing?</h3>
             <p>Several factors have contributed to the surge in <strong>Green Party membership numbers</strong>:</p>
             <ul>
                 <li><strong>Climate urgency:</strong> Growing public concern about climate change and extreme weather events has driven voters toward the party with the strongest environmental credentials.</li>
@@ -582,6 +597,11 @@
             <h3>About This Tracker</h3>
             <p>The <strong>Green Party Membership Tracker</strong> is an independent project that collates publicly available membership data to provide a transparent, accessible record of <strong>Green Party membership over time</strong>. Data is sourced from official party announcements, press releases, and verified reports. Reform UK membership data is tracked from their official website, and Restore Britain data from public announcements.</p>
             <p>This tracker is updated regularly to ensure accuracy. If you have verified membership data that should be included, please get in touch.</p>
+
+            <h3>FAQ: Green Party Membership Numbers</h3>
+            <p><strong>What are the latest Green Party membership numbers?</strong><br>The latest recorded figure on this tracker is <strong>{{formatNumber .GreenLatest}}</strong> members, recorded on <strong>{{.GreenLatestDateLabel}}</strong>.</p>
+            <p><strong>Where do these Green Party membership numbers come from?</strong><br>They are compiled from public announcements, press releases, official statements, and other verified reports.</p>
+            <p><strong>Does this site show Green Party membership history?</strong><br>Yes. The chart and milestone sections show Green Party membership numbers over time so readers can track momentum rather than just a single headline figure.</p>
         </article>
 
         <footer>

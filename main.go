@@ -31,10 +31,29 @@ type TemplateData struct {
 	GreenDataJSON          template.JS
 	ReformDataJSON         template.JS
 	RestoreBritainDataJSON template.JS
+	HomeSchemaJSON         template.JS
 	LastUpdated            string
 	GreenLatest            int
 	ReformLatest           int
 	RestoreBritainLatest   int
+	GreenLatestDateLabel   string
+	GreenLatestDateISO     string
+}
+
+func formatNumber(n int) string {
+	s := fmt.Sprintf("%d", n)
+	if len(s) <= 3 {
+		return s
+	}
+
+	var result []byte
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result = append(result, ',')
+		}
+		result = append(result, byte(c))
+	}
+	return string(result)
 }
 
 func getGreenPartyData() []MembershipDataPoint {
@@ -178,6 +197,103 @@ func getRestoreBritainData(dbPath string) ([]MembershipDataPoint, error) {
 	return points, rows.Err()
 }
 
+func buildHomeSchema(greenLatest int, greenLatestDateLabel, greenLatestDateISO string) template.JS {
+	if greenLatestDateLabel == "" {
+		greenLatestDateLabel = "the latest update"
+	}
+	if greenLatestDateISO == "" {
+		greenLatestDateISO = time.Now().Format("2006-01-02")
+	}
+
+	description := fmt.Sprintf(
+		"Track Green Party membership numbers in the UK. Latest recorded figure: %s members on %s.",
+		formatNumber(greenLatest),
+		greenLatestDateLabel,
+	)
+
+	faq := []map[string]any{
+		{
+			"@type": "Question",
+			"name":  "What are the latest Green Party membership numbers?",
+			"acceptedAnswer": map[string]any{
+				"@type": "Answer",
+				"text":  fmt.Sprintf("The latest recorded Green Party membership number on this tracker is %s members, recorded on %s.", formatNumber(greenLatest), greenLatestDateLabel),
+			},
+		},
+		{
+			"@type": "Question",
+			"name":  "Where do these Green Party membership numbers come from?",
+			"acceptedAnswer": map[string]any{
+				"@type": "Answer",
+				"text":  "This site compiles Green Party membership figures from official announcements, press releases, and other verified public reports.",
+			},
+		},
+		{
+			"@type": "Question",
+			"name":  "Does this site show Green Party membership history over time?",
+			"acceptedAnswer": map[string]any{
+				"@type": "Answer",
+				"text":  "Yes. The tracker includes historical Green Party membership numbers so visitors can follow growth over time and compare it with other UK parties.",
+			},
+		},
+	}
+
+	schema := map[string]any{
+		"@context": "https://schema.org",
+		"@graph": []any{
+			map[string]any{
+				"@type":       "WebSite",
+				"@id":         "https://greenpartytracker.co.uk/#website",
+				"url":         "https://greenpartytracker.co.uk",
+				"name":        "Green Party Membership Numbers",
+				"description": "Live UK tracker of Green Party membership numbers, history, and growth.",
+				"inLanguage":  "en-GB",
+			},
+			map[string]any{
+				"@type":        "WebPage",
+				"@id":          "https://greenpartytracker.co.uk/#webpage",
+				"url":          "https://greenpartytracker.co.uk",
+				"name":         "Green Party Membership Numbers | Live UK Tracker & History",
+				"isPartOf":     map[string]any{"@id": "https://greenpartytracker.co.uk/#website"},
+				"about":        map[string]any{"@id": "https://greenpartytracker.co.uk/#dataset"},
+				"description":  description,
+				"dateModified": greenLatestDateISO,
+				"inLanguage":   "en-GB",
+			},
+			map[string]any{
+				"@type":                "Dataset",
+				"@id":                  "https://greenpartytracker.co.uk/#dataset",
+				"name":                 "Green Party membership numbers",
+				"description":          "Historic and latest Green Party membership numbers in the UK, updated from public announcements and verified reports.",
+				"url":                  "https://greenpartytracker.co.uk",
+				"dateModified":         greenLatestDateISO,
+				"temporalCoverage":     "2023-12-01/" + greenLatestDateISO,
+				"inLanguage":           "en-GB",
+				"measurementTechnique": "Membership figures compiled from official announcements, press releases, and verified reports.",
+				"variableMeasured":     "Green Party membership numbers",
+				"keywords": []string{
+					"green party membership numbers",
+					"green party membership tracker",
+					"green party membership history",
+					"green party members",
+				},
+			},
+			map[string]any{
+				"@type":      "FAQPage",
+				"@id":        "https://greenpartytracker.co.uk/#faq",
+				"mainEntity": faq,
+			},
+		},
+	}
+
+	schemaJSON, err := json.Marshal(schema)
+	if err != nil {
+		return template.JS("{}")
+	}
+
+	return template.JS(schemaJSON)
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -190,20 +306,7 @@ func main() {
 	}
 
 	funcMap := template.FuncMap{
-		"formatNumber": func(n int) string {
-			s := fmt.Sprintf("%d", n)
-			if len(s) <= 3 {
-				return s
-			}
-			var result []byte
-			for i, c := range s {
-				if i > 0 && (len(s)-i)%3 == 0 {
-					result = append(result, ',')
-				}
-				result = append(result, byte(c))
-			}
-			return string(result)
-		},
+		"formatNumber": formatNumber,
 	}
 
 	tmpl, err := template.New("index.html").Funcs(funcMap).ParseFiles("templates/index.html")
@@ -239,8 +342,17 @@ func main() {
 		restoreBritainJSON, _ := json.Marshal(restoreBritainData)
 
 		var greenLatest, reformLatest, restoreBritainLatest int
+		var greenLatestDateLabel, greenLatestDateISO string
 		if len(greenData) > 0 {
-			greenLatest = greenData[len(greenData)-1].Count
+			latestPoint := greenData[len(greenData)-1]
+			greenLatest = latestPoint.Count
+			greenLatestDateISO = latestPoint.Date
+
+			if latestDate, err := time.Parse("2006-01-02", latestPoint.Date); err == nil {
+				greenLatestDateLabel = latestDate.Format("2 January 2006")
+			} else {
+				greenLatestDateLabel = latestPoint.Date
+			}
 		}
 		if len(reformData) > 0 {
 			reformLatest = reformData[len(reformData)-1].Count
@@ -253,10 +365,13 @@ func main() {
 			GreenDataJSON:          template.JS(greenJSON),
 			ReformDataJSON:         template.JS(reformJSON),
 			RestoreBritainDataJSON: template.JS(restoreBritainJSON),
+			HomeSchemaJSON:         buildHomeSchema(greenLatest, greenLatestDateLabel, greenLatestDateISO),
 			LastUpdated:            time.Now().Format("2 January 2006, 15:04"),
 			GreenLatest:            greenLatest,
 			ReformLatest:           reformLatest,
 			RestoreBritainLatest:   restoreBritainLatest,
+			GreenLatestDateLabel:   greenLatestDateLabel,
+			GreenLatestDateISO:     greenLatestDateISO,
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -293,6 +408,30 @@ func main() {
 			log.Printf("Wealth template execution error: %v", err)
 			http.Error(w, "Internal Server Error", 500)
 		}
+	})
+
+	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprint(w, "User-agent: *\nAllow: /\n\nSitemap: https://greenpartytracker.co.uk/sitemap.xml\n")
+	})
+
+	http.HandleFunc("/sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
+		greenLatestDateISO := time.Now().Format("2006-01-02")
+		if greenData := getGreenPartyData(); len(greenData) > 0 {
+			greenLatestDateISO = greenData[len(greenData)-1].Date
+		}
+
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://greenpartytracker.co.uk/</loc>
+    <lastmod>%s</lastmod>
+  </url>
+  <url>
+    <loc>https://greenpartytracker.co.uk/wealth</loc>
+  </url>
+</urlset>`, greenLatestDateISO)
 	})
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
