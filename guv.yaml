@@ -1,0 +1,18 @@
+$schema: https://guv.dev/schema/v1.json
+version: 1
+project: greenpartytracker
+region: lon1
+residency: uk-only
+
+environments:
+  production:
+    branch: master
+
+services:
+  web:
+    build: { builder: dockerfile, dockerfile: Dockerfile }
+    port: 3000
+    healthcheck: { path: /robots.txt, timeout: 10s }
+    domains:
+      - greenpartytracker.co.uk
+    resources: { cpu: 0.5, memory: 256MB }
